@@ -1,0 +1,18 @@
+{
+  "files": [],
+  "compilerOptions": {
+    "noImplicitAny": false,
+    "typeRoots": [
+        "./node_modules/@types",
+        "./node_modules/@yandex/ymaps3-types"
+      ]
+  },
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "./tsconfig.app.json"
+    }
+  ]
+}
