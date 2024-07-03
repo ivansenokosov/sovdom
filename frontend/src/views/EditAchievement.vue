@@ -1,5 +1,6 @@
 <script setup lang="ts">
-    import {ref, computed, defineProps, onMounted} from 'vue'
+    import {ref, computed, defineProps, onMounted, isProxy, toRaw, toRef} from 'vue'
+    
     import InputText from 'primevue/inputtext';
     import Card from 'primevue/card';
     import FileUpload from 'primevue/fileupload';
@@ -10,11 +11,15 @@
     import AutoComplete from 'primevue/autocomplete';
     import Toast from 'primevue/toast';
     import { useToast } from "primevue/usetoast";
-
-
+    import { useBaseUrl } from '@/stores/baseUrl'
     import AxiosInstance from '@/api/axiosInstance';
-    import type { IAchievement } from '@/interfaces';
-    import axios from 'axios';
+    import type { IAchievement, IBuild, IFile } from '@/interfaces';
+
+    import loadBuilds from '@/api/loadBuilds';
+    import loadAchievement from '@/api/loadAchievement';
+    import filterItems from '@/api/filterItems';
+    import uploadFile from '@/api/uploadFile';
+    import loadFile from '@/api/loadFile copy';
 
     const props = defineProps( {
       id: {
@@ -23,7 +28,12 @@
       }}
     )
 
-    let achievement:IAchievement 
+    const baseUrl = useBaseUrl()
+
+    let achievement: IAchievement 
+    const photoBefore = ref<IFile>()
+    const photoAfter = ref<IFile>()
+
     const id = ref<number>(0)
     const buildId = ref<string>('')
     const name = ref<string>('')
@@ -34,34 +44,23 @@
     const photo_before  = ref<string>('')
     const photo_after = ref<string>('')
 
-    // const photo_before_toupload  = ref()
-    // const photo_after_toupload = ref()
-
-
-    const selectedBuild = ref()
-    const builds = ref([]);    
-
-    const loadingBuild = ref<boolean>(true)
-    const loadingAchievement = ref<boolean>(true)
-
-    const saving= ref<Boolean>(false)
-
-    const toast = useToast();
+    const selectedBuild = ref()  // выбор дома из комбо
+    const builds = ref<IBuild[]>([]) // дома    
+    const loadingBuild = ref<boolean>(true) // флаг загрузки домов
+    const loadingAchievement = ref<boolean>(true) // флаг загрузки данных объекта формы
+    const saving= ref<Boolean>(false) // флаг состояния процесса сохранения
+    const toast = useToast(); // уведомление о загрузке файла
 
 
     const disableSaveButton = computed<boolean> (()=>{
         return !(buildId.value && name.value && info_before.value && info_after.value && year_before.value && year_after.value)
     })
 
-    // const onUpload = () => {
-    //     toast.add({ severity: 'info', summary: 'Success', detail: 'File Uploaded', life: 3000 });
-    // };
-
     const submission = async () => {
         saving.value = true
-        const url = 'http://localhost:8000/achievements/'+ props.id + '/';
+        const url = baseUrl.baseUrl + 'achievements/'+ props.id + '/';
        
-        const config = { headers: { 'content-type': 'application/json', }, };
+        const config = { headers: { 'content-type': 'multipart/form-data', }, };
         const formData = new FormData();        
 
         formData.append("name", name.value)
@@ -71,6 +70,9 @@
         formData.append("info_after", info_after.value)
         formData.append("build", selectedBuild.value.id)
 
+        photoBefore && formData.append("photo_before", photoBefore.value.file_blob, photoBefore.value.file_name)
+        photoAfter && formData.append("photo_after", photoAfter.value.file_blob, photoAfter.value.file_name)
+
         const res = await AxiosInstance.put(url, formData, config)
           .then(function(response) {
           console.log(response);
@@ -78,123 +80,54 @@
           console.log(error);
         })
         saving.value = false
-    }
+        toast.add({ severity: 'info', summary: 'Успешно', detail: 'Документ сохранён', life: 3000 });
 
-    const load_builds = async () => {
-        const url = 'http://localhost:8000/catalogs/builds?city=1'
-        const buildsRawData = await AxiosInstance.get(url)
-        builds.value = buildsRawData.data
-        loadingBuild.value = false
     }
 
     const load_achievement = async () => {
-        const url = 'http://localhost:8000/achievements/' + props.id
-        const achievementRawData = await AxiosInstance.get(url)
-        achievement = achievementRawData.data
+        achievement = await loadAchievement(props.id)
 
-        id.value = achievementRawData.data.id
-        buildId.value = String(achievementRawData.data.build)
-        name.value = achievementRawData.data.name
+        id.value = achievement.id
+        buildId.value = String(achievement.build)
+        name.value = achievement.name
 
-        info_before.value = achievementRawData.data.info_before
-        year_before.value = achievementRawData.data.year_before
-        photo_before.value = achievementRawData.data.photo_before
+        info_before.value = achievement.info_before
+        year_before.value = achievement.year_before
+        photo_before.value = achievement.photo_before
 
-        info_after.value = achievementRawData.data.info_after
-        year_after.value = achievementRawData.data.year_after
-        photo_after.value = achievementRawData.data.photo_after
+        info_after.value = achievement.info_after
+        year_after.value = achievement.year_after
+        photo_after.value = achievement.photo_after
 
-        selectedBuild.value = {"id":Number(buildId.value),"name":achievementRawData.data.address}
+        selectedBuild.value = {"id":Number(buildId.value),"name":achievement.address}
+
+        if (photo_before.value) {
+            photoBefore.value = await loadFile(baseUrl.baseUrl + photo_before.value)
+        }
+
+        if (photo_after.value) {
+            photoAfter.value = await loadFile(baseUrl.baseUrl + photo_after.value)
+        }
 
         loadingAchievement.value = false
     }
 
-    const get_img_url_before = computed( () => { 
-        if (loadingAchievement.value === false) {
-            return 'http://localhost:8000' + photo_before.value 
-        }
-    })
-    const get_img_url_after = computed(() => {
-        if (loadingAchievement.value === false) {
-            return 'http://localhost:8000' + photo_after.value 
-        }
-    })
+    const upload_file_before = async (event:any) => { 
+        photoBefore.value = await uploadFile(event)
+    } 
 
-    const upload_file = async (event, type: number) => {
-        const file = event.files[0];
-        const reader = new FileReader();
-        let base64data = ''
-
-        let blob = await fetch(file.objectURL).then((r) => r.blob()); //blob:url
-
-        reader.readAsDataURL(blob);
-
-        reader.onloadend = function () {
-            base64data = reader.result;
-        };
-        const url = 'http://localhost:8000/achievements/'+ props.id + '/';
-       
-        const config = { headers: { 'content-type': 'multipart/form-data', }, };
-        const formData = new FormData();
-        
-        formData.append("name", name.value)
-        formData.append("year_before", year_before.value)
-        formData.append("info_before", info_before.value)
-        formData.append("year_after", year_after.value)
-        formData.append("info_after", info_after.value)
-        formData.append("build", selectedBuild.value.id)
-
-        if (type === 1) {
-            formData.append("photo_before", blob, file.name)
-        } else {
-            formData.append("photo_after", blob, file.name)
-        }
-
-        const res = await AxiosInstance
-            .put(url, formData, config)
-            .then(function(response) {
-//              успешно
-                if (type === 1) {
-                    photo_before.value='/media/achieves_images/' + file.name
-                } else {
-                    photo_after.value='/media/achieves_images/' + file.name
-                }
-                toast.add({ severity: 'info', summary: 'Успешно', detail: 'Файл загружен', life: 3000 });
-
-        }).catch(function(error) {
-            console.log(error);
-        })
-    };
-
-    const upload_file_before = (event) => {
-        upload_file(event, 1)
+    const upload_file_after = async (event:any) => { 
+        photoAfter.value = await uploadFile(event)
     }
 
-    const upload_file_after = (event) => {
-        upload_file(event, 2)
-    }
+    const filteredItems = ref<IBuild[]>([]);
+    const searchItems = (event) => { filteredItems.value = filterItems(builds.value, event.query) }
 
     onMounted(async () => {
-      await load_builds()
-      await load_achievement()
+        builds.value = await loadBuilds()
+        loadingBuild.value = false
+        await load_achievement()
     })    
-
-
-    const filteredItems = ref();
-    const searchItems = (event) => {
-        let query = event.query;
-        let _filteredItems = [];
-
-        for (let i = 0; i < builds.value.length; i++) {
-            let item = builds.value[i];
-
-            if (item.name.toLowerCase().indexOf(query.toLowerCase()) === 0) {
-                _filteredItems.push(item);
-            }
-        }
-        filteredItems.value = _filteredItems;
-    }
-
 </script>
 
 <template>
@@ -208,7 +141,6 @@
                         <AutoComplete class="input mb-5" v-model="selectedBuild" :suggestions="filteredItems" @complete="searchItems" :virtualScrollerOptions="{ itemSize: 10 }" optionLabel="name" inputId="buildId" dropdown />
                         <label for="buildId">Дом</label>
                     </FloatLabel>
-
                 </div>
                 <div v-else>
                     <Skeleton width="100%" height="50px"/>
@@ -224,7 +156,7 @@
                     <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
                         <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                             <template #header>
-                                <img :src="get_img_url_before" width="350" height="262">
+                                <img v-if="photoBefore" v-bind:src="photoBefore.file_base64data" width="350" height="262">
                             </template>
                             <template #title>Было</template>
                             <template #content>
@@ -264,7 +196,7 @@
                     <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
                         <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                             <template #header>
-                                <img :src="get_img_url_after" width="100%">
+                                <img v-if="photoAfter" v-bind:src="photoAfter.file_base64data" width="350" height="262">
                             </template>
                             <template #title>Стало</template>
                             <template #content>

@@ -3,12 +3,11 @@
     import Card from 'primevue/card';
     import Button from 'primevue/button';
     import InputText from 'primevue/inputtext';
-
     import AxiosInstance from '@/api/axiosInstance';
-
-
     import type { IAchievement } from '@/interfaces';
+    import { useBaseUrl } from '@/stores/baseUrl'
 
+    const baseUrl = useBaseUrl()
     const achievements = ref<IAchievement[]>([])
     const achievementsDisplay = ref<IAchievement[]>([])
     const loading = ref<boolean>(true)
@@ -24,9 +23,8 @@
     }
 
     const get_photo_url = (path:string) => {
-        return 'http://localhost:8000' + path
+        return baseUrl.baseUrl + path
     }
-     
 
     const load_achievements = async () => {
         loading.value = true
@@ -75,7 +73,10 @@
 
 
                         <Card style=" color:black;  width: 160px; height: 300px; overflow: hidden">
-                            <template #header><img :src="get_photo_url(achievement.photo_before)" width="160"></template>
+                            <template #header>
+                                <img v-if="achievement.photo_before" :src="get_photo_url(achievement.photo_before)" width="160">
+                                <img v-else src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="160"/>
+                            </template>
                             <template #title>{{ achievement.year_before }} год</template>
                             <template #content>
                                 <div class="field text-sm m-1 font-light">
@@ -87,7 +88,10 @@
 
                     <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-1">
                         <Card style="color:black;  width: 160px; height: 300px; overflow: hidden">
-                            <template #header><img :src="get_photo_url(achievement.photo_after)" width="160"></template>
+                            <template #header>
+                                <img v-if="achievement.photo_after" :src="get_photo_url(achievement.photo_after)" width="160">
+                                <img v-else src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="160"/>
+                            </template>
                             <template #title>{{ achievement.year_after }} год</template>
                             <template #content>
                                 <div class="field text-sm m-1 font-light">

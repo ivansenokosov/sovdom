@@ -35,7 +35,9 @@
 <template>
     <app-menubar :model="items" class="menu" style="border: 0">
         <template #start>
-        <img src="../assets/sovdom_logo_red64.png" width="64">
+            <RouterLink to="/">
+                <img src="../assets/sovdom_logo_red64.png" width="64">
+            </RouterLink>    
     </template>
             <template #item="{ item, props }">
             <template v-if="item.show">
@@ -48,8 +50,10 @@
         <template #end>
             <span v-if="userStore.userId" @click="userStore.userId=''">
                 <span class="flex align-items-center menu-exit">
-                    <span class="pi pi-sign-out p-menuitem-icon"></span>
-                    <span class="ml-2">Выход</span>
+                    <RouterLink to="/" class="flex align-items-center">
+                        <span class="pi pi-sign-out p-menuitem-icon"></span>
+                        <span class="ml-2">Выход</span>
+                    </RouterLink>
                 </span>
             </span>
             <span v-else>

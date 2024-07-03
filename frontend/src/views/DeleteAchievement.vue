@@ -1,19 +1,14 @@
 <script setup lang="ts">
-    import {ref, computed, defineProps, onMounted} from 'vue'
-    import { useRoute, useRouter } from 'vue-router'
-
-    import InputText from 'primevue/inputtext';
+    import {ref, defineProps, onMounted, computed} from 'vue'
+    import { useRouter } from 'vue-router'
     import Card from 'primevue/card';
-    import FileUpload from 'primevue/fileupload';
     import Skeleton from 'primevue/skeleton';
     import Button from 'primevue/button';
-    import FloatLabel from 'primevue/floatlabel';
-    import Select from 'primevue/select';
-    import AutoComplete from 'primevue/autocomplete';
-
     import AxiosInstance from '@/api/axiosInstance';
     import type { IAchievement } from '@/interfaces';
-    import axios from 'axios';
+    import loadAchievement from '@/api/loadAchievement';
+    import { useBaseUrl } from '@/stores/baseUrl'
+
 
     const props = defineProps( {
       id: {
@@ -21,7 +16,9 @@
         required: true,
       }}
     )
+
     const router = useRouter()
+    const baseUrl = useBaseUrl()
 
     let achievement:IAchievement 
     const loadingAchievement = ref<boolean>(true)
@@ -31,22 +28,15 @@
             AxiosInstance.delete(url,{})
         .then((res) => {
             router.push(`/achievements`)
-            
         })
     }
 
-    const load_achievement = async () => {
-        const url = 'http://localhost:8000/achievements/' + props.id
-        const achievementRawData = await AxiosInstance.get(url)
-        achievement = achievementRawData.data
-        loadingAchievement.value = false
-    }
-
-    function get_img_url_before() { return 'http://localhost:8000' + achievement.photo_before }
-    function get_img_url_after() { return 'http://localhost:8000' + achievement.photo_after }
+    const get_img_url_before = computed(() => baseUrl.baseUrl + achievement.photo_before)
+    const get_img_url_after = computed(() => baseUrl.baseUrl + achievement.photo_after)
 
     onMounted(async () => {
-      await load_achievement()
+        achievement = await loadAchievement(props.id)
+        loadingAchievement.value = false
     })    
 </script>
 
@@ -63,7 +53,7 @@
                         <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
                             <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                                 <template #header>
-                                    <img :src="get_img_url_before()" width="100%">
+                                    <img :src="get_img_url_before" width="100%">
                                 </template>
                                 <template #title>Было</template>
                                 <template #content>
@@ -82,7 +72,7 @@
                         <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
                             <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                                 <template #header>
-                                    <img :src="get_img_url_after()" width="100%">
+                                    <img :src="get_img_url_after" width="100%">
                                 </template>
                                 <template #title>Стало</template>
                                 <template #content>

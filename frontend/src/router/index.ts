@@ -19,6 +19,12 @@ const routes : RouteRecordRaw [] = [
     component: () => import('@/views/HomeView.vue')
   },
   {
+    path: '/cabinet',
+    name: 'cabinet',
+    component: () => import('@/views/CabinetView.vue'),
+    beforeEnter: checkAuth
+  },
+  {
     path: '/achievements',
     name: 'achievements',
     component: () => import('@/views/ListAchievements.vue')

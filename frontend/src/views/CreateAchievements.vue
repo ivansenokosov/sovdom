@@ -1,6 +1,6 @@
 <script setup lang="ts">
-    import {ref, computed, defineProps, onMounted} from 'vue'
-    import { useRoute, useRouter } from 'vue-router'    
+    import {ref, computed, onMounted} from 'vue'
+    import { useRouter } from 'vue-router'    
     import InputText from 'primevue/inputtext';
     import Card from 'primevue/card';
     import FileUpload from 'primevue/fileupload';
@@ -11,34 +11,33 @@
     import AutoComplete from 'primevue/autocomplete';
     import Toast from 'primevue/toast';
     import { useToast } from "primevue/usetoast";
-
+    import { useBaseUrl } from '@/stores/baseUrl'
     import AxiosInstance from '@/api/axiosInstance';
+    import type { IBuild } from '@/interfaces';
+    import type { IFile } from '@/interfaces';
+    import loadBuilds from '@/api/loadBuilds';
+    import filterItems from '@/api/filterItems';
+    import uploadFile from '@/api/uploadFile';
 
     const router = useRouter()
     const toast = useToast();
+    const baseUrl = useBaseUrl()    
 
-    const buildId = ref<string>('')
     const name = ref<string>('')
     const info_before  = ref<string>('')
     const info_after = ref<string>('')
     const year_before  = ref<number>()
     const year_after = ref<number>()
-    const photo_before  = ref<string>('')
-    const photo_after = ref<string>('')
+    const photo_before = ref<IFile>() 
+    const photo_after = ref<IFile>() 
 
     const selectedBuild = ref()
-    const builds = ref([]);    
+    const builds = ref<IBuild[]>([]);    
 
     const loadingBuild = ref<boolean>(true)
 
-    const file_before = ref<any>() 
-    const file_after = ref<any>() 
-    const base64data_before = ref<String>('')
-    const base64data_after = ref<String>('')
-    const blob_before = ref<Blob>()
-    const blob_after = ref<Blob>()
-
     const saving= ref<Boolean>(false)
+    const filteredItems = ref();
 
     const disableSaveButton = computed<boolean> (()=>{
         return !(selectedBuild.value && name.value && info_before.value && info_after.value && year_before.value && year_after.value)
@@ -46,7 +45,7 @@
 
     const submission = async () => {
         saving.value = true
-        const url = 'http://localhost:8000/achievements/';
+        const url = baseUrl.baseUrl + 'achievements/';
        
         const config = { headers: { 'content-type': 'multipart/form-data', }, };
         const formData = new FormData();        
@@ -58,8 +57,8 @@
         formData.append("info_after", info_after.value)
         formData.append("build", selectedBuild.value.id)
 
-        blob_before && formData.append("photo_before", blob_before.value, file_before.value.name)
-        blob_after && formData.append("photo_after", blob_after.value, file_after.value.name)
+        photo_before.value && formData.append("photo_before", photo_before.value.file_blob, photo_before.value.file_name)
+        photo_after.value && formData.append("photo_after", photo_after.value.file_blob, photo_after.value.file_name)
 
         const res = await AxiosInstance.post(url, formData, config)
           .then(function(response) {
@@ -72,63 +71,14 @@
         saving.value = false
     }
 
-    const load_builds = async () => {
-        const url = 'http://localhost:8000/catalogs/builds?city=1'
-        const buildsRawData = await AxiosInstance.get(url)
-        builds.value = buildsRawData.data
-        loadingBuild.value = false
-    }
+    const searchItems = (event) => { filteredItems.value = filterItems(builds.value, event.query) }
 
-    const filteredItems = ref();
-
-    const searchItems = (event) => {
-        let query = event.query;
-        let _filteredItems = [];
-
-        for (let i = 0; i < builds.value.length; i++) {
-            let item = builds.value[i];
-
-            if (item.name.toLowerCase().indexOf(query.toLowerCase()) === 0) {
-                _filteredItems.push(item);
-            }
-        }
-        filteredItems.value = _filteredItems;
-    }
-
-    const upload_file = async (event, type: number) => {
-        const file = event.files[0];
-        const reader = new FileReader();
-        let base64data
-
-        let blob = await fetch(file.objectURL).then((r) => r.blob()); //blob:url
-
-        reader.readAsDataURL(blob);
-
-        reader.onloadend = function () {
-            base64data = reader.result
-
-            if (type === 1) {
-                file_before.value = file
-                base64data_before.value = base64data       
-                blob_before.value = blob
-            } else {
-                file_after.value = file
-                base64data_after.value = base64data       
-                blob_after.value = blob
-            }
-        }
-    }
-
-    const upload_file_before = (event) => {
-        upload_file(event, 1)
-    }
-
-    const upload_file_after = (event) => {
-        upload_file(event, 2)
-    }
+    const upload_file_before = async (event:any) => { photo_before.value = await uploadFile(event) }
+    const upload_file_after = async (event:any)  => { photo_after.value  = await uploadFile(event) }
 
     onMounted(async () => {
-      await load_builds()
+        builds.value = await loadBuilds()
+        loadingBuild.value = false
     })    
 
 </script>
@@ -160,12 +110,8 @@
                     <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
                         <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                             <template #header>
-                                <div v-if="base64data_before">
-                                    <img v-bind:src="base64data_before"  width="350" height="262"/>
-                                </div>
-                                <div v-else>
-                                    <img src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="350" height="262"/>
-                                </div>
+                                <img v-if="photo_before" v-bind:src="photo_before.file_base64data"  width="350" height="262"/>
+                                <img v-else src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="350" height="262"/>
                             </template>
                             <template #title>Было</template>
                             <template #content>
@@ -205,12 +151,8 @@
                     <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
                         <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                             <template #header>
-                                <div v-if="base64data_after">
-                                    <img v-bind:src="base64data_after"  width="350" height="262"/>
-                                </div>
-                                <div v-else>
-                                    <img src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="350" height="262"/>
-                                </div>
+                                <img v-if="photo_after" v-bind:src="photo_after.file_base64data"  width="350" height="262"/>
+                                <img v-else src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="350" height="262"/>
                             </template>
                             <template #title>Стало</template>
                             <template #content>

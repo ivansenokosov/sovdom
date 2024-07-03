@@ -57,20 +57,20 @@
 
 
   const submitForm = () : void => {
-    isLoading.value = true
 
     // проверяем на правильность ввода кода
 
     if (code.value != code_sent.value) {
       errCodeMsg.value = 'Код введён неверно'
     } else {
+      isLoading.value = true
       errCodeMsg.value = ''
       step.value = 2
       
       try {
         // создание нового пользователя или авторизация в имеющемся
         userStore.userId = '111' // устанавливаем id пользователя
-        router.push('/')
+        router.push('/cabinet')
       } catch (error: unknown) {
         if (error instanceof Error) {
           console.log(error.message)
@@ -112,7 +112,7 @@
                 <Button label="Получить код" class="w-full mt-2" v-if="step === 0 && phone_enter_complete" @click="send_sms"/>
               </div>
               <div class="flex justify-content-center gap-5">
-                  <Button type="submit"  class="w-full mt-2" label="Войти" :loading="isLoading" icon="pi pi-user" v-if="step === 1 && code_enter_complete"/>
+                  <Button type="submit"  class="w-full mt-2" label="Войти" :loading="isLoading" icon="pi pi-user" v-if="step === 1 && code_enter_complete && !errCodeMsg"/>
               </div>
               <div class="flex justify-content-center gap-5">
                 <Button link label="Изменить номер"  class="w-full mt-2" v-if="step === 1" @click="back"/>
