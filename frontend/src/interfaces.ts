@@ -1,13 +1,14 @@
 export interface IAchievement {
-  id?: Number
-  address?: String
-  name?: String
+  id: Number
+  build: Number
+  address: String
+  name: String
   year_before: Number
   year_after: Number
   info_before: String
   info_after: String
-  photo_before: String
-  photo_after: String  
+  photo_before?: String
+  photo_after?: String  
 } 
 
 export interface IBuild {

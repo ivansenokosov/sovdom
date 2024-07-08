@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import {ref, defineProps, onMounted, computed} from 'vue'
+    import {ref, defineProps, onMounted} from 'vue'
     import { useRouter } from 'vue-router'
     import Card from 'primevue/card';
     import Skeleton from 'primevue/skeleton';
@@ -31,9 +31,6 @@
         })
     }
 
-    const get_img_url_before = computed(() => baseUrl.baseUrl + achievement.photo_before)
-    const get_img_url_after = computed(() => baseUrl.baseUrl + achievement.photo_after)
-
     onMounted(async () => {
         achievement = await loadAchievement(props.id)
         loadingAchievement.value = false
@@ -53,7 +50,7 @@
                         <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
                             <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                                 <template #header>
-                                    <img :src="get_img_url_before" width="100%">
+                                    <img :src="`${baseUrl.baseUrl}${achievement.photo_before}`" width="100%">
                                 </template>
                                 <template #title>Было</template>
                                 <template #content>
@@ -72,7 +69,7 @@
                         <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
                             <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                                 <template #header>
-                                    <img :src="get_img_url_after" width="100%">
+                                    <img :src="`${baseUrl.baseUrl}${achievement.photo_after}`" width="100%">
                                 </template>
                                 <template #title>Стало</template>
                                 <template #content>
@@ -110,7 +107,7 @@
 
             <template #footer>
                 <div class="flex flex-wrap justify-center gap-4">
-                    <router-link to="/achievements" target="_blank" rel="noopener">
+                    <router-link to="/achievements" rel="noopener">
                         <Button link label="Отменить" />
                     </router-link>
                     <Button label="Удалить" severity="danger" icon="pi pi-times" iconPos="right" @click="submission"/>

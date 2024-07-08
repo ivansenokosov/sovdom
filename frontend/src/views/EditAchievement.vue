@@ -30,30 +30,23 @@
 
     const baseUrl = useBaseUrl()
 
-    let achievement: IAchievement 
+    const achievement = ref<IAchievement>() 
     const photoBefore = ref<IFile>()
     const photoAfter = ref<IFile>()
 
-    const id = ref<number>(0)
     const buildId = ref<string>('')
-    const name = ref<string>('')
-    const info_before  = ref<string>('')
-    const info_after = ref<string>('')
-    const year_before  = ref<number>()
-    const year_after = ref<number>()
-    const photo_before  = ref<string>('')
-    const photo_after = ref<string>('')
-
     const selectedBuild = ref()  // выбор дома из комбо
+
     const builds = ref<IBuild[]>([]) // дома    
     const loadingBuild = ref<boolean>(true) // флаг загрузки домов
+
     const loadingAchievement = ref<boolean>(true) // флаг загрузки данных объекта формы
     const saving= ref<Boolean>(false) // флаг состояния процесса сохранения
     const toast = useToast(); // уведомление о загрузке файла
 
 
     const disableSaveButton = computed<boolean> (()=>{
-        return !(buildId.value && name.value && info_before.value && info_after.value && year_before.value && year_after.value)
+        return !(buildId.value && achievement.value.name && achievement.value.info_before && achievement.value.info_after && achievement.value.year_before && achievement.value.year_after)
     })
 
     const submission = async () => {
@@ -63,15 +56,15 @@
         const config = { headers: { 'content-type': 'multipart/form-data', }, };
         const formData = new FormData();        
 
-        formData.append("name", name.value)
-        formData.append("year_before", year_before.value)
-        formData.append("info_before", info_before.value)
-        formData.append("year_after", year_after.value)
-        formData.append("info_after", info_after.value)
+        formData.append("name", achievement.value.name)
+        formData.append("year_before", achievement.value.year_before)
+        formData.append("info_before", achievement.value.info_before)
+        formData.append("year_after", achievement.value.year_after)
+        formData.append("info_after", achievement.value.info_after)
         formData.append("build", selectedBuild.value.id)
 
-        photoBefore && formData.append("photo_before", photoBefore.value.file_blob, photoBefore.value.file_name)
-        photoAfter && formData.append("photo_after", photoAfter.value.file_blob, photoAfter.value.file_name)
+        photoBefore.value && formData.append("photo_before", photoBefore.value.file_blob, photoBefore.value.file_name)
+        photoAfter.value && formData.append("photo_after", photoAfter.value.file_blob, photoAfter.value.file_name)
 
         const res = await AxiosInstance.put(url, formData, config)
           .then(function(response) {
@@ -85,28 +78,18 @@
     }
 
     const load_achievement = async () => {
-        achievement = await loadAchievement(props.id)
+        achievement.value = await loadAchievement(props.id)
 
-        id.value = achievement.id
-        buildId.value = String(achievement.build)
-        name.value = achievement.name
+        buildId.value = String(achievement.value.build)
 
-        info_before.value = achievement.info_before
-        year_before.value = achievement.year_before
-        photo_before.value = achievement.photo_before
+        selectedBuild.value = {"id":Number(buildId.value),"name":achievement.value.address}
 
-        info_after.value = achievement.info_after
-        year_after.value = achievement.year_after
-        photo_after.value = achievement.photo_after
-
-        selectedBuild.value = {"id":Number(buildId.value),"name":achievement.address}
-
-        if (photo_before.value) {
-            photoBefore.value = await loadFile(baseUrl.baseUrl + photo_before.value)
+        if (achievement.value.photo_before) {
+            photoBefore.value = await loadFile(baseUrl.baseUrl + achievement.value.photo_before)
         }
 
-        if (photo_after.value) {
-            photoAfter.value = await loadFile(baseUrl.baseUrl + photo_after.value)
+        if (achievement.value.photo_after) {
+            photoAfter.value = await loadFile(baseUrl.baseUrl + achievement.value.photo_after)
         }
 
         loadingAchievement.value = false
@@ -149,7 +132,7 @@
                 <div v-if="!loadingAchievement" class="mt-3">
 
                 <FloatLabel>
-                    <InputText class="input mb-3" id="name" v-model="name" />
+                    <InputText class="input mb-3" id="name" v-model="achievement.name" />
                     <label for="name">Описание</label>
                 </FloatLabel>
                 <div class="flex justify-content-center flex-wrap mt-5">
@@ -157,19 +140,20 @@
                         <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                             <template #header>
                                 <img v-if="photoBefore" v-bind:src="photoBefore.file_base64data" width="350" height="262">
+                                <img v-else :src="`${baseUrl.baseUrl}media/achieves_images/no_photo.jpg`" width="350" height="262"/>
                             </template>
                             <template #title>Было</template>
                             <template #content>
                                 <div class="mt-5">
                                     <div class="field">
                                         <FloatLabel>
-                                            <InputNumber class="input mb-3" v-model="year_before" inputId="year_before" :useGrouping="false" :step="1"/>
+                                            <InputNumber class="input mb-3" v-model="achievement.year_before" inputId="year_before" :useGrouping="false" :step="1"/>
                                             <label for="year_before" class="font-light">Год</label>
                                         </FloatLabel>
                                     </div>
                                     <div class="field">
                                         <FloatLabel>
-                                            <InputText class="input mb-3" id="info_before" v-model="info_before" />
+                                            <InputText class="input mb-3" id="info_before" v-model="achievement.info_before" />
                                             <label for="info_before" class="font-light">Информация</label>
                                         </FloatLabel>
                                     </div>
@@ -197,19 +181,20 @@
                         <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                             <template #header>
                                 <img v-if="photoAfter" v-bind:src="photoAfter.file_base64data" width="350" height="262">
+                                <img v-else :src="`${baseUrl.baseUrl}media/achieves_images/no_photo.jpg`" width="350" height="262"/>
                             </template>
                             <template #title>Стало</template>
                             <template #content>
                                 <div class="mt-5">
                                     <div class="field">
                                         <FloatLabel>
-                                            <InputNumber class="input mb-3" v-model="year_after" inputId="year_after" :useGrouping="false" :step="1"/>
+                                            <InputNumber class="input mb-3" v-model="achievement.year_after" inputId="year_after" :useGrouping="false" :step="1"/>
                                             <label for="year_after" class="font-light">Год</label>
                                         </FloatLabel>
                                     </div>
                                     <div class="field">
                                         <FloatLabel>
-                                            <InputText  class="input mb-3" id="info_after" v-model="info_after" />
+                                            <InputText  class="input mb-3" id="info_after" v-model="achievement.info_after" />
                                             <label for="info_after" class="font-light">Информация</label>
                                         </FloatLabel>
                                     </div>

@@ -62,7 +62,6 @@
 
         const res = await AxiosInstance.post(url, formData, config)
           .then(function(response) {
-          console.log(response);
           toast.add({ severity: 'info', summary: 'Успешно', detail: 'Документ создан', life: 3000 });
           router.push(`/achievements`)
         }).catch(function(error) {

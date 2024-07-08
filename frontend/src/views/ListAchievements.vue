@@ -22,24 +22,19 @@
         }
     }
 
-    const get_photo_url = (path:string) => {
-        return baseUrl.baseUrl + path
-    }
-
-    const load_achievements = async () => {
+    const load_achievements = async <T extends IAchievement> ():Promise<T[]> => {
         loading.value = true
-        const url = 'http://localhost:8000/achievements'
+        const url = baseUrl.baseUrl + 'achievements'
         const achievementsRawData = await AxiosInstance.get(url)
-        achievements.value = achievementsRawData.data
-        achievementsDisplay.value = achievementsRawData.data
-        loading.value = false
+        let items : Array<T> = achievementsRawData.data
+        return items
     }
-
-    const get_router_path = (id:number) => { return '/edit_achievement/' + id }
-    const get_router_path_delete = (id:number) => { return '/delete_achievement/' + id }
 
     onMounted(async () => {
-      await load_achievements()
+      const listAchievements : Array<IAchievement> = await load_achievements()
+      achievements.value = [...listAchievements]
+      achievementsDisplay.value = achievements.value
+      loading.value = false
     })    
 
 </script>
@@ -74,8 +69,8 @@
 
                         <Card style=" color:black;  width: 160px; height: 300px; overflow: hidden">
                             <template #header>
-                                <img v-if="achievement.photo_before" :src="get_photo_url(achievement.photo_before)" width="160">
-                                <img v-else src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="160"/>
+                                <img v-if="achievement.photo_before" :src="`${baseUrl.baseUrl}${achievement.photo_before}`" width="160">
+                                <img v-else :src="`${baseUrl.baseUrl}media/achieves_images/no_photo.jpg`" width="160"/>
                             </template>
                             <template #title>{{ achievement.year_before }} год</template>
                             <template #content>
@@ -89,8 +84,8 @@
                     <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-1">
                         <Card style="color:black;  width: 160px; height: 300px; overflow: hidden">
                             <template #header>
-                                <img v-if="achievement.photo_after" :src="get_photo_url(achievement.photo_after)" width="160">
-                                <img v-else src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="160"/>
+                                <img v-if="achievement.photo_after" :src="`${baseUrl.baseUrl}${achievement.photo_after}`" width="160">
+                                <img v-else :src="`${baseUrl.baseUrl}media/achieves_images/no_photo.jpg`" width="160"/>
                             </template>
                             <template #title>{{ achievement.year_after }} год</template>
                             <template #content>
@@ -104,10 +99,10 @@
 
                 </template>
                 <template #footer>
-                    <router-link :to="get_router_path_delete(achievement.id)" rel="noopener">
+                    <router-link :to="`/delete_achievement/${achievement.id}`" rel="noopener">
                         <Button icon="pi pi-times" severity="danger"></Button>
                     </router-link>
-                    <router-link :to="get_router_path(achievement.id)" rel="noopener">
+                    <router-link :to="`/edit_achievement/${achievement.id}`" rel="noopener">
                         <Button icon="pi pi-pencil" class="ml-2"></Button>
                     </router-link>
                 </template>
