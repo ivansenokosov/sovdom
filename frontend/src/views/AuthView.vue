@@ -2,21 +2,21 @@
   import {computed, ref, inject} from 'vue'
   import { useUserStore } from '@/stores/user';  
   import { useRouter } from 'vue-router';
-
+  import { useBaseUrl } from '@/stores/baseUrl'
   import InputMask from 'primevue/inputmask';
   import Button from 'primevue/button';
   import InputOtp from 'primevue/inputotp';
 
 
-
-  const phone = ref<string>('')      // телефон для отправки кода
-  const code = ref<string>('')       // введённый код 
-  const code_sent = ref<string>('')  // отправленный код
-  const step = ref<number>(0)        // этап авторизации 0 - телефон не введён, код не отправлен, 1 - телефон введён, код отправлен, 2 - код введён
-  const isLoading = ref<boolean>(false)
-  const errCodeMsg = ref<string>('')
-  const router = useRouter()
-  const userStore = useUserStore()
+  const baseUrl     = useBaseUrl()
+  const phone       = ref<string>('')      // телефон для отправки кода
+  const code        = ref<string>('')       // введённый код 
+  const code_sent   = ref<string>('')  // отправленный код
+  const step        = ref<number>(0)        // этап авторизации 0 - телефон не введён, код не отправлен, 1 - телефон введён, код отправлен, 2 - код введён
+  const isLoading   = ref<boolean>(false)
+  const errCodeMsg  = ref<string>('')
+  const router      = useRouter()
+  const userStore   = useUserStore()
 
   const axios: any = inject('axios')
 
@@ -49,7 +49,7 @@
   }
 
   const getCitizen = ():void => {
-      axios.get('http://localhost:8000/catalogs/cities/')
+      axios.get(baseUrl.baseUrl + 'catalogs/cities/')
            .then((response: { data: any }) => {
         console.log(response.data)
       })

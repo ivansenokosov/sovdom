@@ -4,11 +4,12 @@
     import Card from 'primevue/card';
     import Skeleton from 'primevue/skeleton';
     import Button from 'primevue/button';
+    import type { IDocument, IAchievement } from '@/interfaces';
     import AxiosInstance from '@/api/axiosInstance';
-    import type { IAchievement } from '@/interfaces';
-    import loadAchievement from '@/api/loadAchievement';
+    import { useFetch } from '@/api/useFetch';
+    import { deleteData } from '@/api/dataActions'
     import { useBaseUrl } from '@/stores/baseUrl'
-
+    import AchievementCard from '@/components/AchievementCard.vue';
 
     const props = defineProps( {
       id: {
@@ -18,22 +19,17 @@
     )
 
     const router = useRouter()
-    const baseUrl = useBaseUrl()
-
-    let achievement:IAchievement 
-    const loadingAchievement = ref<boolean>(true)
+    const achievement = ref<IDocument<IAchievement>>({data:[], error: null, loading: true})
+    let  error = ref<any>()
 
     const submission = () => {
-        const url:string = 'achievements/' + props.id
-            AxiosInstance.delete(url,{})
-        .then((res) => {
-            router.push(`/achievements`)
-        })
+        const url:string = 'achievements/' + props.id + '/'
+        deleteData(url).then(() => {router.push(`/achievements`)})
     }
 
+
     onMounted(async () => {
-        achievement = await loadAchievement(props.id)
-        loadingAchievement.value = false
+        achievement.value = await useFetch('achievements/' + props.id, {});
     })    
 </script>
 
@@ -42,49 +38,12 @@
         <Card>                  
             <template #title><h1>Удалить Было/стало?</h1></template>
             <template #content>
-                <div v-if="!loadingAchievement" class="mt-3">
-                    <h3>Адрес: {{ achievement.address }}</h3>
-                    <p class="font-semibold">{{ achievement.name  }}</p>
+                <div v-if="!achievement.loading" class="mt-3">
+                    <h3>Адрес: {{ achievement.data[0].address }}</h3>
+                    <p class="font-semibold">{{ achievement.data[0].name  }}</p>
 
-                    <div class="flex justify-content-center flex-wrap mt-5">
-                        <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
-                            <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
-                                <template #header>
-                                    <img :src="`${baseUrl.baseUrl}${achievement.photo_before}`" width="100%">
-                                </template>
-                                <template #title>Было</template>
-                                <template #content>
-                                    <div class="mt-5">
-                                        <div class="field">
-                                            <p>Год: {{ achievement.year_before}}</p>
-                                        </div>
-                                        <div class="field">
-                                            <p>Описание: {{ achievement.info_before}}</p>
-                                        </div>
-                                    </div>                                
-                                </template>
-                            </Card>
-                        </div>
+                    <AchievementCard :achievement="achievement.data[0]" width="350" height="600"/>
 
-                        <div class="flex align-items-center justify-content-center bg-primary font-bold border-round m-2">
-                            <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
-                                <template #header>
-                                    <img :src="`${baseUrl.baseUrl}${achievement.photo_after}`" width="100%">
-                                </template>
-                                <template #title>Стало</template>
-                                <template #content>
-                                    <div class="mt-5">
-                                        <div class="field">
-                                            <p>Год: {{ achievement.year_after}} год</p>
-                                        </div>
-                                        <div class="field">
-                                            <p>Описание: {{ achievement.info_after}}</p>
-                                        </div>
-                                    </div>
-                                </template>
-                            </Card>
-                        </div>
-                    </div>
                 </div>
 
                 <div v-else>

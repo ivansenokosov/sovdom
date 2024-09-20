@@ -13,34 +13,37 @@
     import { useToast } from "primevue/usetoast";
     import { useBaseUrl } from '@/stores/baseUrl'
     import AxiosInstance from '@/api/axiosInstance';
-    import type { IBuild } from '@/interfaces';
-    import type { IFile } from '@/interfaces';
-    import loadBuilds from '@/api/loadBuilds';
+    import type { IDocument, IBuild, IFile} from '@/interfaces';
     import filterItems from '@/api/filterItems';
     import uploadFile from '@/api/uploadFile';
+    import { useFetch } from '@/api/useFetch';
+    import MyAutocomplete from '@/components/MyAutocomplete.vue';
 
-    const router = useRouter()
-    const toast = useToast();
-    const baseUrl = useBaseUrl()    
 
-    const name = ref<string>('')
-    const info_before  = ref<string>('')
-    const info_after = ref<string>('')
-    const year_before  = ref<number>()
-    const year_after = ref<number>()
-    const photo_before = ref<IFile>() 
-    const photo_after = ref<IFile>() 
+    const router        = useRouter()
+    const toast         = useToast();
+    const baseUrl       = useBaseUrl()    
 
-    const selectedBuild = ref()
-    const builds = ref<IBuild[]>([]);    
-
-    const loadingBuild = ref<boolean>(true)
-
-    const saving= ref<Boolean>(false)
+    const name          = ref<string>('')
+    const info_before   = ref<string>('')
+    const info_after    = ref<string>('')
+    const year_before   = ref<string>('')
+    const year_after    = ref<string>('')
+    const photo_before  = ref<IFile>() 
+    const photo_after   = ref<IFile>() 
+    const selectedBuild = ref<number>(186066)
+    const builds        = ref<IDocument<IBuild>>({data:[], error: null, loading: true});    
+    const loading       = ref<boolean>(true)
+    const saving        = ref<boolean>(false)
     const filteredItems = ref();
 
     const disableSaveButton = computed<boolean> (()=>{
-        return !(selectedBuild.value && name.value && info_before.value && info_after.value && year_before.value && year_after.value)
+        return !(selectedBuild.value && 
+                 name.value && 
+                 info_before.value && 
+                 info_after.value && 
+                 year_before.value && 
+                 year_after.value)
     })
 
     const submission = async () => {
@@ -51,14 +54,14 @@
         const formData = new FormData();        
 
         formData.append("name", name.value)
-        formData.append("year_before", year_before.value)
-        formData.append("info_before", info_before.value)
-        formData.append("year_after", year_after.value)
-        formData.append("info_after", info_after.value)
-        formData.append("build", selectedBuild.value.id)
+        formData.append("year_before", year_before.value.toString())
+        formData.append("info_before", info_before.value.toString())
+        formData.append("year_after", year_after.value.toString())
+        formData.append("info_after", info_after.value.toString())
+        formData.append("build", selectedBuild.value.toString())
 
-        photo_before.value && formData.append("photo_before", photo_before.value.file_blob, photo_before.value.file_name)
-        photo_after.value && formData.append("photo_after", photo_after.value.file_blob, photo_after.value.file_name)
+        photo_before.value && photo_before.value.file_blob && formData.append("photo_before", photo_before.value.file_blob, photo_before.value.file_name)
+        photo_after.value && photo_after.value.file_blob && formData.append("photo_after", photo_after.value.file_blob, photo_after.value.file_name)
 
         const res = await AxiosInstance.post(url, formData, config)
           .then(function(response) {
@@ -70,14 +73,12 @@
         saving.value = false
     }
 
-    const searchItems = (event) => { filteredItems.value = filterItems(builds.value, event.query) }
-
     const upload_file_before = async (event:any) => { photo_before.value = await uploadFile(event) }
     const upload_file_after = async (event:any)  => { photo_after.value  = await uploadFile(event) }
 
     onMounted(async () => {
-        builds.value = await loadBuilds()
-        loadingBuild.value = false
+        builds.value = await useFetch('catalogs/builds?city=1',{})
+        loading.value = false
     })    
 
 </script>
@@ -88,17 +89,14 @@
             <template #title><h1>Создание Было/стало</h1></template>
             <template #content>
 
-                <div v-if= "!loadingBuild" class="card flex justify-center w-full">
-                    <FloatLabel style="width:100%">
-                        <AutoComplete class="input mb-5" v-model="selectedBuild" :suggestions="filteredItems" @complete="searchItems" :virtualScrollerOptions="{ itemSize: 10 }" optionLabel="name" inputId="buildId" dropdown />
-                        <label for="buildId">Дом</label>
-                    </FloatLabel>
+                <div v-if= "!loading" class="card flex justify-center w-full">
+                    <MyAutocomplete v-model="selectedBuild" :value="selectedBuild" :options="builds.data" label="Дом"/>
                 </div>
                 <div v-else>
                     <Skeleton width="100%" height="50px"/>
                 </div>
 
-                <div class="mt-3">
+                <div class="mt-5">
 
                 <FloatLabel>
                     <InputText class="input mb-3" id="name" v-model="name" />
@@ -110,7 +108,7 @@
                         <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                             <template #header>
                                 <img v-if="photo_before" v-bind:src="photo_before.file_base64data"  width="350" height="262"/>
-                                <img v-else src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="350" height="262"/>
+                                <img v-else :src="`${baseUrl.baseUrl}media/achieves_images/no_photo.jpg`" width="350" height="262"/>
                             </template>
                             <template #title>Было</template>
                             <template #content>
@@ -151,7 +149,7 @@
                         <Card style="background-color:lightgray; color:black;  width: 350px; height: 600px; overflow: hidden">
                             <template #header>
                                 <img v-if="photo_after" v-bind:src="photo_after.file_base64data"  width="350" height="262"/>
-                                <img v-else src="http://localhost:8000/media/achieves_images/no_photo.jpg" width="350" height="262"/>
+                                <img v-else :src="`${baseUrl.baseUrl}media/achieves_images/no_photo.jpg`" width="350" height="262"/>
                             </template>
                             <template #title>Стало</template>
                             <template #content>

@@ -1,9 +1,10 @@
 import axios from 'axios'
+import { useBaseUrl } from '@/stores/baseUrl'
 
-const baseUrl = 'http://localhost:8000/'
+const baseUrl = useBaseUrl()
 
 const AxiosInstance = axios.create({
-    baseURL: baseUrl,
+    baseURL: baseUrl.baseUrl,
     timeout: 100000,
     headers: {
         "Content-Type": "application/json",
@@ -12,3 +13,4 @@ const AxiosInstance = axios.create({
 }) 
 
 export default AxiosInstance
+

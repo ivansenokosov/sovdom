@@ -1,6 +1,5 @@
 <script setup lang="ts">
-    import {ref, computed, defineProps, onMounted, isProxy, toRaw, toRef} from 'vue'
-    
+    import {ref, computed, defineProps, onMounted} from 'vue'
     import InputText from 'primevue/inputtext';
     import Card from 'primevue/card';
     import FileUpload from 'primevue/fileupload';
@@ -13,13 +12,11 @@
     import { useToast } from "primevue/usetoast";
     import { useBaseUrl } from '@/stores/baseUrl'
     import AxiosInstance from '@/api/axiosInstance';
-    import type { IAchievement, IBuild, IFile } from '@/interfaces';
-
-    import loadBuilds from '@/api/loadBuilds';
-    import loadAchievement from '@/api/loadAchievement';
+    import type { IDocument, IAchievement, IBuild, IFile } from '@/interfaces';
     import filterItems from '@/api/filterItems';
     import uploadFile from '@/api/uploadFile';
-    import loadFile from '@/api/loadFile copy';
+    import loadFile from '@/api/loadFile';
+    import { useFetch } from '@/api/useFetch';
 
     const props = defineProps( {
       id: {
@@ -28,25 +25,25 @@
       }}
     )
 
-    const baseUrl = useBaseUrl()
-
-    const achievement = ref<IAchievement>() 
-    const photoBefore = ref<IFile>()
-    const photoAfter = ref<IFile>()
-
-    const buildId = ref<string>('')
-    const selectedBuild = ref()  // выбор дома из комбо
-
-    const builds = ref<IBuild[]>([]) // дома    
-    const loadingBuild = ref<boolean>(true) // флаг загрузки домов
-
-    const loadingAchievement = ref<boolean>(true) // флаг загрузки данных объекта формы
-    const saving= ref<Boolean>(false) // флаг состояния процесса сохранения
-    const toast = useToast(); // уведомление о загрузке файла
-
+    const baseUrl       = useBaseUrl()
+    const toast         = useToast(); // уведомление о загрузке файла
+    const achievement   = ref<IDocument<IAchievement>>({data:[], error: null, loading: true}) 
+    const builds        = ref<IDocument<IBuild>>({data:[], error: null, loading: true}) // дома    
+    const photoBefore   = ref<IFile>()
+    const photoAfter    = ref<IFile>()
+    const buildId       = ref<string>('')
+    const selectedBuild = ref<IBuild>({id:0, name:''})  // выбор дома из комбо
+    const loading       = ref<boolean>(true) 
+    const saving        = ref<boolean>(false) // флаг состояния процесса сохранения
+    const filteredItems = ref<IBuild[]>([]);
 
     const disableSaveButton = computed<boolean> (()=>{
-        return !(buildId.value && achievement.value.name && achievement.value.info_before && achievement.value.info_after && achievement.value.year_before && achievement.value.year_after)
+        return !(buildId.value && 
+                 achievement.value.data[0].name && 
+                 achievement.value.data[0].info_before && 
+                 achievement.value.data[0].info_after && 
+                 achievement.value.data[0].year_before && 
+                 achievement.value.data[0].year_after)
     })
 
     const submission = async () => {
@@ -56,60 +53,39 @@
         const config = { headers: { 'content-type': 'multipart/form-data', }, };
         const formData = new FormData();        
 
-        formData.append("name", achievement.value.name)
-        formData.append("year_before", achievement.value.year_before)
-        formData.append("info_before", achievement.value.info_before)
-        formData.append("year_after", achievement.value.year_after)
-        formData.append("info_after", achievement.value.info_after)
-        formData.append("build", selectedBuild.value.id)
+        formData.append("name", achievement.value.data[0].name)
+        formData.append("year_before", achievement.value.data[0].year_before.toString())
+        formData.append("info_before", achievement.value.data[0].info_before.toString())
+        formData.append("year_after", achievement.value.data[0].year_after.toString())
+        formData.append("info_after", achievement.value.data[0].info_after.toString())
+        formData.append("build", selectedBuild.value.toString())
 
-        photoBefore.value && formData.append("photo_before", photoBefore.value.file_blob, photoBefore.value.file_name)
-        photoAfter.value && formData.append("photo_after", photoAfter.value.file_blob, photoAfter.value.file_name)
+        photoBefore.value && photoBefore.value.file_blob && formData.append("photo_before", photoBefore.value.file_blob, photoBefore.value.file_name)
+        photoAfter.value && photoAfter.value.file_blob && formData.append("photo_after", photoAfter.value.file_blob, photoAfter.value.file_name)
 
         const res = await AxiosInstance.put(url, formData, config)
           .then(function(response) {
-          console.log(response);
+            toast.add({ severity: 'info', summary: 'Успешно', detail: 'Документ сохранён', life: 3000 });
+            console.log(response);
         }).catch(function(error) {
           console.log(error);
         })
         saving.value = false
-        toast.add({ severity: 'info', summary: 'Успешно', detail: 'Документ сохранён', life: 3000 });
-
     }
 
-    const load_achievement = async () => {
-        achievement.value = await loadAchievement(props.id)
-
-        buildId.value = String(achievement.value.build)
-
-        selectedBuild.value = {"id":Number(buildId.value),"name":achievement.value.address}
-
-        if (achievement.value.photo_before) {
-            photoBefore.value = await loadFile(baseUrl.baseUrl + achievement.value.photo_before)
-        }
-
-        if (achievement.value.photo_after) {
-            photoAfter.value = await loadFile(baseUrl.baseUrl + achievement.value.photo_after)
-        }
-
-        loadingAchievement.value = false
-    }
-
-    const upload_file_before = async (event:any) => { 
-        photoBefore.value = await uploadFile(event)
-    } 
-
-    const upload_file_after = async (event:any) => { 
-        photoAfter.value = await uploadFile(event)
-    }
-
-    const filteredItems = ref<IBuild[]>([]);
-    const searchItems = (event) => { filteredItems.value = filterItems(builds.value, event.query) }
+    const upload_file_before = async (event:any) => { photoBefore.value = await uploadFile(event) } 
+    const upload_file_after  = async (event:any) => { photoAfter.value  = await uploadFile(event) }
+    const searchItems = (event: any) => { filteredItems.value = filterItems(builds.value.data, event.query) }
 
     onMounted(async () => {
-        builds.value = await loadBuilds()
-        loadingBuild.value = false
-        await load_achievement()
+        builds.value = await useFetch('catalogs/builds?city=1',{})
+        achievement.value = await useFetch('achievements/' + props.id,{})
+        buildId.value = String(achievement.value.data[0].build)
+        selectedBuild.value = {"id":Number(buildId.value), "name":achievement.value.data[0].address}
+
+        achievement.value.data[0].photo_before && (photoBefore.value = await loadFile(baseUrl.baseUrl + achievement.value.data[0].photo_before))
+        achievement.value.data[0].photo_after &&  (photoAfter.value  = await loadFile(baseUrl.baseUrl + achievement.value.data[0].photo_after))
+        loading.value = false
     })    
 </script>
 
@@ -119,7 +95,7 @@
             <template #title><h1>Редактировние Было/стало</h1></template>
             <template #content>
 
-                <div v-if= "!loadingBuild" class="card flex justify-center w-full">
+                <div v-if= "!loading" class="card flex justify-center w-full">
                     <FloatLabel style="width:100%">
                         <AutoComplete class="input mb-5" v-model="selectedBuild" :suggestions="filteredItems" @complete="searchItems" :virtualScrollerOptions="{ itemSize: 10 }" optionLabel="name" inputId="buildId" dropdown />
                         <label for="buildId">Дом</label>
@@ -129,10 +105,10 @@
                     <Skeleton width="100%" height="50px"/>
                 </div>
 
-                <div v-if="!loadingAchievement" class="mt-3">
+                <div v-if="!loading" class="mt-3">
 
                 <FloatLabel>
-                    <InputText class="input mb-3" id="name" v-model="achievement.name" />
+                    <InputText class="input mb-3" id="name" v-model="achievement.data[0].name" />
                     <label for="name">Описание</label>
                 </FloatLabel>
                 <div class="flex justify-content-center flex-wrap mt-5">
@@ -147,13 +123,13 @@
                                 <div class="mt-5">
                                     <div class="field">
                                         <FloatLabel>
-                                            <InputNumber class="input mb-3" v-model="achievement.year_before" inputId="year_before" :useGrouping="false" :step="1"/>
+                                            <InputNumber class="input mb-3" v-model="achievement.data[0].year_before" inputId="year_before" :useGrouping="false" :step="1"/>
                                             <label for="year_before" class="font-light">Год</label>
                                         </FloatLabel>
                                     </div>
                                     <div class="field">
                                         <FloatLabel>
-                                            <InputText class="input mb-3" id="info_before" v-model="achievement.info_before" />
+                                            <InputText class="input mb-3" id="info_before" v-model="achievement.data[0].info_before" />
                                             <label for="info_before" class="font-light">Информация</label>
                                         </FloatLabel>
                                     </div>
@@ -188,13 +164,13 @@
                                 <div class="mt-5">
                                     <div class="field">
                                         <FloatLabel>
-                                            <InputNumber class="input mb-3" v-model="achievement.year_after" inputId="year_after" :useGrouping="false" :step="1"/>
+                                            <InputNumber class="input mb-3" v-model="achievement.data[0].year_after" inputId="year_after" :useGrouping="false" :step="1"/>
                                             <label for="year_after" class="font-light">Год</label>
                                         </FloatLabel>
                                     </div>
                                     <div class="field">
                                         <FloatLabel>
-                                            <InputText  class="input mb-3" id="info_after" v-model="achievement.info_after" />
+                                            <InputText  class="input mb-3" id="info_after" v-model="achievement.data[0].info_after" />
                                             <label for="info_after" class="font-light">Информация</label>
                                         </FloatLabel>
                                     </div>
